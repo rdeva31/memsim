@@ -10,7 +10,11 @@ package memsim;
  * @author sound
  */
 public class Core implements Runnable{
-
+    public Core(Memory mem)
+    {
+        //TODO: fill in shit
+    }
+    
     public void run()
     {
         //TODO: fill in shit

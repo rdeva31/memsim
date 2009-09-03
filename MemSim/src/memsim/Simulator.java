@@ -9,7 +9,12 @@ public class Simulator {
 
     public Simulator()
     {
-       proc = new Processor();
+       this(1);
+    }
+
+    public Simulator(int numCores)
+    {
+        proc = new Processor(numCores, Processor.MemoryArchitecture.VON_NEUMANN);
     }
 
     public void start()
