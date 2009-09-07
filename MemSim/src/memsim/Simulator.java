@@ -2,7 +2,7 @@ package memsim;
 
 /**
  *
- * @author sound
+ * @author rdeva
  */
 public class Simulator {
     private Processor proc;
@@ -14,7 +14,8 @@ public class Simulator {
 
     public Simulator(int numCores)
     {
-        proc = new Processor(numCores, Processor.MemoryArchitecture.VON_NEUMANN);
+        proc = ProcessorFactory.createProcessor(ProcessorFactory.MemoryArchitecture.HARVARD);
+        proc.setCores(numCores);
     }
 
     public void start()
@@ -24,6 +25,6 @@ public class Simulator {
 
     public void stop()
     {
-        proc.stop();
+        //TODO implement this
     }
 }

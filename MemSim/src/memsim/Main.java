@@ -2,7 +2,7 @@ package memsim;
 
 /**
  *
- * @author sound
+ * @author rdeva
  */
 public class Main {
 
