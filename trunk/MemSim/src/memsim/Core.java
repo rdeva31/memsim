@@ -7,10 +7,10 @@ package memsim;
 
 /**
  *
- * @author sound
+ * @author rdeva
  */
 public class Core implements Runnable{
-    public Core(Memory mem)
+    public Core(Memory programMem, Bound programBound, Memory dataMem, Bound dataBound)
     {
         //TODO: fill in shit
     }
