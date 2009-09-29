@@ -5,6 +5,9 @@
 
 package memsim;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 /**
  *
  * @author rdeva
@@ -154,6 +157,48 @@ public class Memory {
                 break;
             default:    //should never happen
                 throw new RuntimeException("Code shouldn't have execed");
+        }
+    }
+
+    /**
+     * Reads contents of a file and loads it into memory. If numBytes is &lt; 0, read the whole file.
+     * if sizeOf(file) < numBytes, read only sizeOf(file) bytes.
+     * @param m memory to load data into
+     * @param f file to read data from
+     * @param numBytes number of bytes to read.
+     * @throws java.io.IOException if file access is blocked or other IO errors
+     */
+    public static void loadIntoMemory(Memory m, File f, int numBytes) throws java.io.IOException
+    {
+        FileInputStream fi = new FileInputStream(f);
+        int bytesRead = 4;
+        byte[] word = new byte[4];
+
+        for (int c = 0; c < numBytes && bytesRead == 4; ++c)
+        {
+            try
+            {
+                bytesRead = fi.read(word);
+            }
+            catch (java.io.IOException e)
+            {
+                break;
+            }
+
+            switch(bytesRead)
+            {
+                case 4:
+                    m.mem[c] = (word[0] << 24) + (word[1] << 16) + (word[2] << 8) + word[3];
+                    break;
+                case 3:
+                    m.mem[c] = (word[0] << 24) + (word[1] << 16) + (word[2] << 8);
+                    break;
+                case 2:
+                    m.mem[c] = (word[0] << 24) + (word[1] << 16);
+                    break;
+                case 1:
+                    m.mem[c] = (word[0] << 24);
+            }
         }
     }
 }
