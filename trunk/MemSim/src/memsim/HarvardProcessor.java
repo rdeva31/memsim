@@ -5,6 +5,9 @@
 
 package memsim;
 
+import java.io.IOException;
+import java.util.ArrayList;
+
 /**
  *
  * @author sound
@@ -35,6 +38,10 @@ class HarvardProcessor extends Processor {
                 coresList.add(new Core(new Memory(MEMORY_SIZE), new Bound(0,100), new Memory(MEMORY_SIZE), new Bound(0,100)));//FIXME bogus bounds
     }
 
+    public ArrayList<Core> getCoreList() {
+        return coresList;
+    }
+    
     public int getCores()
     {
         return numCores;

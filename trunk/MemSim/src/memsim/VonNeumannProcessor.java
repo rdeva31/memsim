@@ -5,12 +5,14 @@
 
 package memsim;
 
+import java.util.ArrayList;
+
 /**
  *
  * @author sound
  */
 public class VonNeumannProcessor extends Processor {
-    private java.util.ArrayList<Core> coresList;
+    private ArrayList<Core> coresList;
     private int numCores = 1;
     private boolean running = false;
     private final int MEMORY_SIZE = 1024;
@@ -19,6 +21,7 @@ public class VonNeumannProcessor extends Processor {
     public VonNeumannProcessor()
     {
         Bound b = new Bound(0, 100); //FIXME bogus bounds
+        coresList = new ArrayList<Core>();
         coresList.add(new Core(mem, b, mem, b));
     }
 
@@ -39,6 +42,12 @@ public class VonNeumannProcessor extends Processor {
         else if (numCores > this.numCores)
             for (int c = this.numCores; c <= numCores; ++c)
                 coresList.add(new Core(mem, new Bound(0, 100), mem, new Bound(0, 100)));//FIXME bogus bounds
+
+         this.numCores = numCores;
+    }
+
+    public ArrayList<Core> getCoreList() {
+        return coresList;
     }
 
     public void run()
