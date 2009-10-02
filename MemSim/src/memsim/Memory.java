@@ -8,6 +8,7 @@ package memsim;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import memsim.exceptions.MemoryAccessException;
 /**
  *
  * @author rdeva
@@ -52,13 +53,13 @@ public class Memory {
      * @param memAddr memory addr (logical) to be read
      * @param b the memory region with read/write permission
      * @return byte at memory location memAddr
-     * @throws java.rmi.AccessException if memory addr is out of bounds of the accessible region
+     * @throws MemoryAccessException if memory addr is out of bounds of the accessible region
      */
-    public int readByte(int memAddr, Bound b) throws java.rmi.AccessException
+    public int readByte(int memAddr, Bound b) throws MemoryAccessException
     {
         int realAddr = b.getLowerBound() + ((memAddr >> 2) << 2);
         if (realAddr > b.getHigherBound())
-            throw new java.rmi.AccessException("Memory addr out of bounds");
+            throw new MemoryAccessException("Memory addr out of bounds");
         
         int temp = mem[realAddr >> 2];
         
@@ -83,16 +84,16 @@ public class Memory {
      * @param b the memory region with read/write permission
      * @return
      * @throws IllegalArgumentException if the address isn't word aligned
-     * @throws java.rmi.AccessException if memory addr is out of bounds of the accessible region
+     * @throws MemoryAccessException if memory addr is out of bounds of the accessible region
      */
-    public int readWord(int memAddr, Bound b) throws IllegalArgumentException, java.rmi.AccessException
+    public int readWord(int memAddr, Bound b) throws IllegalArgumentException, MemoryAccessException
     {
         int realAddr = b.getLowerBound() + memAddr;
         
         if ((memAddr & 3) != 0)
             throw new IllegalArgumentException("address isn't word aligned");
         else if (realAddr > b.getHigherBound())
-            throw new java.rmi.AccessException("Memory addr out of bounds");
+            throw new MemoryAccessException("Memory addr out of bounds");
 
         return mem[realAddr >> 2];
     }
@@ -103,16 +104,16 @@ public class Memory {
      * @param b the memory region with read/write permission
      * @param data data to write
      * @throws IllegalArgumentException if the address isn't word aligned
-     * @throws java.rmi.AccessException if memory addr is out of bounds of the accessible region
+     * @throws MemoryAccessException if memory addr is out of bounds of the accessible region
      */
-    public void writeWord(int memAddr, int data, Bound b) throws IllegalArgumentException, java.rmi.AccessException
+    public void writeWord(int memAddr, int data, Bound b) throws IllegalArgumentException, MemoryAccessException
     {
         int realAddr = b.getLowerBound() + memAddr;
 
         if ((memAddr & 3) != 0)
             throw new IllegalArgumentException("address isn't word aligned");
         else if (realAddr > b.getHigherBound())
-            throw new java.rmi.AccessException("Memory addr out of bounds");
+            throw new MemoryAccessException("Memory addr out of bounds");
 
         mem[realAddr >> 2] = data;
     }
@@ -123,13 +124,13 @@ public class Memory {
      * @param data data to write
      * @param b the memory region with read/write permission
      * @return byte at memory location memAddr
-     * @throws java.rmi.AccessException if memory addr is out of bounds of the accessible region
+     * @throws MemoryAccessException if memory addr is out of bounds of the accessible region
      */
-    public void writeByte(int memAddr, byte data, Bound b) throws java.rmi.AccessException
+    public void writeByte(int memAddr, byte data, Bound b) throws MemoryAccessException
     {
         int realAddr = b.getLowerBound() + ((memAddr >> 2) << 2);
         if (realAddr > b.getHigherBound())
-            throw new java.rmi.AccessException("Memory addr out of bounds");
+            throw new MemoryAccessException("Memory addr out of bounds");
 
         realAddr = realAddr >> 2; //get rid of useless 2 byte offset
         int temp = mem[realAddr];
@@ -168,37 +169,47 @@ public class Memory {
      * @param numBytes number of bytes to read.
      * @throws java.io.IOException if file access is blocked or other IO errors
      */
-    public static void loadIntoMemory(Memory m, File f, int numBytes) throws java.io.IOException
+    public static void loadIntoMemory(Memory m, File f, long numBytes) throws java.io.IOException
     {
         FileInputStream fi = new FileInputStream(f);
-        int bytesRead = 4;
+        int bytesRead = 4, totalBytes = 0;
         byte[] word = new byte[4];
+
+        if (numBytes < 0)
+            numBytes = f.length();
 
         for (int c = 0; c < numBytes && bytesRead == 4; ++c)
         {
             try
             {
-                bytesRead = fi.read(word);
+                totalBytes += bytesRead = fi.read(word);
             }
             catch (java.io.IOException e)
             {
                 break;
             }
-
-            switch(bytesRead)
+            
+            switch(bytesRead) //could be optimised, but am too lazy
             {
                 case 4:
-                    m.mem[c] = (word[0] << 24) + (word[1] << 16) + (word[2] << 8) + word[3];
+                    m.mem[c] = (word[0] << 24) + ((word[1] << 16) & (0xff << 16))
+                            + ((word[2] << 8) & (0xff << 8)) + (word[3] & 0xff);
                     break;
                 case 3:
-                    m.mem[c] = (word[0] << 24) + (word[1] << 16) + (word[2] << 8);
+                    m.mem[c] = (word[0] << 24) + ((word[1] << 16) & (0xff << 16))
+                            + ((word[2] << 8) & (0xff << 8));
                     break;
                 case 2:
-                    m.mem[c] = (word[0] << 24) + (word[1] << 16);
+                    m.mem[c] = (word[0] << 24) + ((word[1] << 16) & (0xff << 16));
                     break;
                 case 1:
                     m.mem[c] = (word[0] << 24);
             }
+            
         }
+
+
+
+        m.size = totalBytes;
     }
 }
