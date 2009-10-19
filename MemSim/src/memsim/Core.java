@@ -301,19 +301,114 @@ public class Core implements Runnable {
                         //return ARMV4_TypeMultiplication;
                     } else {
                         /* mul */
+                        boolean updateStatus =
+                                removeTrailingZeroes(instr & generateMask(20,20)) == 1;
+                        int rd = removeTrailingZeroes(instr & generateMask(16, 19));
+                        int rs = removeTrailingZeroes(instr & generateMask(8, 11));
+                        int rm = removeTrailingZeroes(instr & generateMask(0, 3));
 
+                        BigInteger rmBig = new BigInteger(Integer.toString(registers[rm])),
+                                rsBig = new BigInteger(Integer.toString(registers[rs])),
+                                rdBig;
+
+                        rdBig = rmBig.multiply(rsBig);
+                        //can it fit in 32 bits?
+                        if (rdBig.compareTo(new BigInteger(((1 << 32) - 1) + "")) <= 0)
+                        {
+                            registers[rd] = rdBig.intValue();
+                        }
+                        else
+                        {
+                            //isolate the lower 32 bits, discard anything else
+                            registers[rd] =
+                                    rdBig.and(new BigInteger(((1 << 32) - 1) + "")).intValue();
+                        }
+
+                                                //update the status registers if need be
+                        if (updateStatus)
+                        {
+                            //note in ARMv4 and under, C flag was unpredictable,
+                            //but in ARMv5 and up, C flag was uneffected.
+                            //simulator assumes v5+
+                            if (registers[rd] < 0) //update N flag
+                                cpsrRegister |= N_MASK;
+
+                            if (registers[rd] == 0)
+                                cpsrRegister |= Z_MASK;
+
+                        }
+                        
                         //return ARMV4_TypeMultiplication;
                     }
                 } else if (removeTrailingZeroes(instr & generateMask(23, 24)) == 1) {
+                    int rdHigh = removeTrailingZeroes(instr & generateMask(16,19)),
+                                rdLow = removeTrailingZeroes(instr & generateMask(12,15)),
+                                rs = removeTrailingZeroes(instr & generateMask(8,11)),
+                                rm = removeTrailingZeroes(instr & generateMask(0,3));
+                    boolean updateStatus = removeTrailingZeroes(instr & generateMask(20,20)) > 0;
+                    
                     switch (removeTrailingZeroes(instr & generateMask(21, 22))) {
                         case 0x0:
+                        {
+                            BigInteger result =
+                                    new BigInteger(Integer.toString(registers[rs]))
+                                    .multiply(new BigInteger(Integer.toString(registers[rm])));
+                            byte[] resultBytes = result.toByteArray();
 
+                            registers[rdHigh] = resultBytes[0];
+                            registers[rdLow] = resultBytes[1];
+
+                            if (updateStatus)
+                            {
+                                if (registers[rs] < 0 ^ registers[rm] < 0)
+                                    cpsrRegister |= N_MASK;
+
+                                if (registers[rs] == 0 || registers[rm] == 0)
+                                    cpsrRegister |= Z_MASK;
+
+                                //note in ARMv4 and under, C and V flag was unpredictable,
+                                //but in ARMv5 and up, C and V flag was uneffected.
+                                //simulator assumes v5+
+                            }
                             //return ARMV4_TypeMultiplication; /* smull */
                             break;
+                        }
                         case 0x1:
+                        {
+                            byte[] toAccumulate = new byte[8];
+                            toAccumulate[0] = (byte)removeTrailingZeroes(registers[rdHigh] & generateMask(31, 24));
+                            toAccumulate[1] = (byte)removeTrailingZeroes(registers[rdHigh] & generateMask(23, 16));
+                            toAccumulate[2] = (byte)removeTrailingZeroes(registers[rdHigh] & generateMask(15, 8));
+                            toAccumulate[3] = (byte)removeTrailingZeroes(registers[rdHigh] & generateMask(7, 0));
+                            toAccumulate[4] = (byte)removeTrailingZeroes(registers[rdLow] & generateMask(31, 24));
+                            toAccumulate[5] = (byte)removeTrailingZeroes(registers[rdLow] & generateMask(23, 16));
+                            toAccumulate[6] = (byte)removeTrailingZeroes(registers[rdLow] & generateMask(15, 8));
+                            toAccumulate[7] = (byte)removeTrailingZeroes(registers[rdLow] & generateMask(7, 0));
+                            BigInteger toAccumulateBig = new BigInteger(toAccumulate);
+                            BigInteger multiplyResult =
+                                    new BigInteger(Integer.toString(registers[rs]))
+                                    .multiply(new BigInteger(Integer.toString(registers[rm])));
+                            BigInteger result = toAccumulateBig.add(multiplyResult);
+                            
+                            byte[] resultBytes = result.toByteArray();
+                            registers[rdHigh] = resultBytes[0];
+                            registers[rdLow] = resultBytes[1];
 
+                            if (updateStatus)
+                            {
+                                if (result.compareTo(BigInteger.ZERO) < 0)
+                                    cpsrRegister |= N_MASK;
+
+                                if (result.compareTo(BigInteger.ZERO) == 0)
+                                    cpsrRegister |= Z_MASK;
+
+                                //note in ARMv4 and under, C and V flag was unpredictable,
+                                //but in ARMv5 and up, C and V flag was uneffected.
+                                //simulator assumes v5+
+                            }
                             //return ARMV4_TypeMultiplication; /* smlal */
                             break;
+                        }
                         case 0x2:
 
                             //return ARMV4_TypeMultiplication; /* umull */
