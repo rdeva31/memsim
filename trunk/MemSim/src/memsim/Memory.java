@@ -16,7 +16,15 @@ import memsim.exceptions.MemoryAccessException;
 public class Memory {
     public static final int MIN_SIZE = 128;
     private int size;
+
+    /*
+     * Addressing for mem goes like this
+     * mem[addr] = | byte 1 | byte 2 | byte 3 | byte 4 |
+     *               addr+0   addr+1   addr+2   addr+3
+     */
     private int[] mem;
+
+
 
     /**
      * Create a memory unit with given size bytes
@@ -55,7 +63,7 @@ public class Memory {
      * @return byte at memory location memAddr
      * @throws MemoryAccessException if memory addr is out of bounds of the accessible region
      */
-    public int readByte(int memAddr, Bound b) throws MemoryAccessException
+    public byte readByte(int memAddr, Bound b) throws MemoryAccessException
     {
         int realAddr = b.getLowerBound() + ((memAddr >> 2) << 2);
         if (realAddr > b.getHigherBound())
@@ -66,13 +74,13 @@ public class Memory {
         switch (memAddr & 3)
         {
             case 0:
-                return temp >> 24 & 0xff;
+                return (byte)(temp >> 24 & 0xff);
             case 1:
-                return (temp >> 16) & 0xff;
+                return (byte)((temp >> 16) & 0xff);
             case 2:
-                return (temp >> 8) & 0xff;
+                return (byte)((temp >> 8) & 0xff);
             case 3:
-                return temp & 0xff;
+                return (byte)(temp & 0xff);
             default:    //should never happen
                 throw new RuntimeException("Code shouldn't have execed");
         }
