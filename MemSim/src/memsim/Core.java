@@ -66,7 +66,7 @@ public class Core implements Runnable {
     private void exec(int instruction) throws UnknownFormatException, UnimplementedInstructionException,
             MemoryAccessException {
 
-        int op = removeTrailingZeroes(instruction & generateMask(25, 28));
+        int op = removeTrailingZeroes(instruction & generateMask(25, 27));
         
         switch (op) {
             case 0x0:
@@ -247,7 +247,7 @@ public class Core implements Runnable {
     }
 
 
-    private void parseInstrExt2(int instr) {
+    private void parseInstrExt2(int instr) throws memsim.exceptions.MemoryAccessException{
         /* MUL/MLA,SMLAL,SMULL,UMLAL,UMULL, STRH/LDRH, LDRSB, LDRH and two undefined*/
         int op = (instr >> 5) & 0x3;
         switch (op) {
@@ -292,10 +292,13 @@ public class Core implements Runnable {
                             //simulator assumes v5+
                             if (registers[rd] < 0) //update N flag
                                 cpsrRegister |= N_MASK;
+                            else
+                                cpsrRegister &= ~N_MASK;
 
                             if (registers[rd] == 0)
                                 cpsrRegister |= Z_MASK;
-
+                            else
+                                cpsrRegister &= ~Z_MASK;
                         }
                             
                         //return ARMV4_TypeMultiplication;
@@ -332,9 +335,13 @@ public class Core implements Runnable {
                             //simulator assumes v5+
                             if (registers[rd] < 0) //update N flag
                                 cpsrRegister |= N_MASK;
+                            else
+                                cpsrRegister &= ~N_MASK;
 
                             if (registers[rd] == 0)
                                 cpsrRegister |= Z_MASK;
+                            else
+                                cpsrRegister &= ~Z_MASK;
 
                         }
                         
@@ -362,9 +369,13 @@ public class Core implements Runnable {
                             {
                                 if (registers[rs] < 0 ^ registers[rm] < 0)
                                     cpsrRegister |= N_MASK;
+                                else
+                                    cpsrRegister &= ~N_MASK;
 
                                 if (registers[rs] == 0 || registers[rm] == 0)
                                     cpsrRegister |= Z_MASK;
+                                else
+                                    cpsrRegister &= ~Z_MASK;
 
                                 //note in ARMv4 and under, C and V flag was unpredictable,
                                 //but in ARMv5 and up, C and V flag was uneffected.
@@ -375,16 +386,8 @@ public class Core implements Runnable {
                         }
                         case 0x1:
                         {
-                            byte[] toAccumulate = new byte[8];
-                            toAccumulate[0] = (byte)removeTrailingZeroes(registers[rdHigh] & generateMask(31, 24));
-                            toAccumulate[1] = (byte)removeTrailingZeroes(registers[rdHigh] & generateMask(23, 16));
-                            toAccumulate[2] = (byte)removeTrailingZeroes(registers[rdHigh] & generateMask(15, 8));
-                            toAccumulate[3] = (byte)removeTrailingZeroes(registers[rdHigh] & generateMask(7, 0));
-                            toAccumulate[4] = (byte)removeTrailingZeroes(registers[rdLow] & generateMask(31, 24));
-                            toAccumulate[5] = (byte)removeTrailingZeroes(registers[rdLow] & generateMask(23, 16));
-                            toAccumulate[6] = (byte)removeTrailingZeroes(registers[rdLow] & generateMask(15, 8));
-                            toAccumulate[7] = (byte)removeTrailingZeroes(registers[rdLow] & generateMask(7, 0));
-                            BigInteger toAccumulateBig = new BigInteger(toAccumulate);
+                            long toAccumulate = (registers[rdHigh] << 32) + registers[rdLow];
+                            BigInteger toAccumulateBig = new BigInteger(Long.toString(toAccumulate));
                             BigInteger multiplyResult =
                                     new BigInteger(Integer.toString(registers[rs]))
                                     .multiply(new BigInteger(Integer.toString(registers[rm])));
@@ -398,9 +401,13 @@ public class Core implements Runnable {
                             {
                                 if (result.compareTo(BigInteger.ZERO) < 0)
                                     cpsrRegister |= N_MASK;
+                                else
+                                    cpsrRegister &= ~N_MASK;
 
                                 if (result.compareTo(BigInteger.ZERO) == 0)
                                     cpsrRegister |= Z_MASK;
+                                else
+                                    cpsrRegister &= ~Z_MASK;
 
                                 //note in ARMv4 and under, C and V flag was unpredictable,
                                 //but in ARMv5 and up, C and V flag was uneffected.
@@ -410,31 +417,158 @@ public class Core implements Runnable {
                             break;
                         }
                         case 0x2:
+                        {
+                            BigInteger result =
+                                    new BigInteger(Integer.toString(registers[rs]))
+                                    .multiply(new BigInteger(Integer.toString(registers[rm])));
+                            byte[] resultBytes = result.toByteArray();
 
+                            registers[rdHigh] = resultBytes[0];
+                            registers[rdLow] = resultBytes[1];
+
+                            if (updateStatus)
+                            {
+                                if (registers[rs] < 0 ^ registers[rm] < 0)
+                                    cpsrRegister |= N_MASK;
+                                else
+                                    cpsrRegister &= ~N_MASK;
+
+                                if (registers[rs] == 0 || registers[rm] == 0)
+                                    cpsrRegister |= Z_MASK;
+                                else
+                                    cpsrRegister &= ~Z_MASK;
+
+                                //note in ARMv4 and under, C and V flag was unpredictable,
+                                //but in ARMv5 and up, C and V flag was uneffected.
+                                //simulator assumes v5+
+                            }
                             //return ARMV4_TypeMultiplication; /* umull */
                             break;
+                        }
                         case 0x3:
+                        {
+                            //TODO check all unsigned operations, the toString()s might cause trouble
+                            long toAccumulate = (registers[rdHigh] << 32) + registers[rdLow];
+                            BigInteger toAccumulateBig = new BigInteger(Long.toString(toAccumulate));
+                            BigInteger multiplyResult =
+                                    new BigInteger(Integer.toString(registers[rs]))
+                                    .multiply(new BigInteger(Integer.toString(registers[rm])));
+                            BigInteger result = toAccumulateBig.add(multiplyResult);
+
+                            byte[] resultBytes = result.toByteArray();
+                            registers[rdHigh] = resultBytes[0];
+                            registers[rdLow] = resultBytes[1];
+
+                            if (updateStatus)
+                            {
+                                if (result.compareTo(BigInteger.ZERO) < 0)
+                                    cpsrRegister |= N_MASK;
+                                else
+                                    cpsrRegister &= ~N_MASK;
+
+                                if (result.compareTo(BigInteger.ZERO) == 0)
+                                    cpsrRegister |= Z_MASK;
+                                else
+                                    cpsrRegister &= ~Z_MASK;
+                            }
+                            //note in ARMv4 and under, C and V flag was unpredictable,
+                            //but in ARMv5 and up, C and V flag was uneffected.
+                            //simulator assumes v5+
 
                             //return ARMV4_TypeMultiplication; /* umlal */
                             break;
+                        }
                     }
                 } else if (((instr >> 20) & 0x1B) == 0x10) {
                     if (removeTrailingZeroes(instr & generateMask(22, 22)) == 1) {
                         /* swapb */
+                        int rn = removeTrailingZeroes(instr & generateMask(16,19)),
+                            rd = removeTrailingZeroes(instr & generateMask(12,15)),
+                            rm = removeTrailingZeroes(instr & generateMask(0,3));
 
+                        byte rnData = dataMem.readByte(rn, dataBound);
+                        dataMem.writeByte(rn, (byte)(registers[rm] & generateMask(0,7)), dataBound);
+                        registers[rd] = ((int)rnData) & generateMask(0,7);
                         //return ARMV4_TypeAtomicSwap;
                     } else {
                         /* swp */
+                        int rn = removeTrailingZeroes(instr & generateMask(16,19)),
+                            rd = removeTrailingZeroes(instr & generateMask(12,15)),
+                            rm = removeTrailingZeroes(instr & generateMask(0,3));
 
+                        int rnData = dataMem.readWord(rn, dataBound);
+                        dataMem.writeWord(rn, registers[rm], dataBound);
+                        registers[rd] = rnData;
                         //return ARMV4_TypeAtomicSwap;
                     }
                 }
                 break;
-            /* Load/store half-word ldrh/strh*/
-            case 0x1:
 
+            /* Load/store half-word ldrh/strh (unsigned)*/
+            case 0x1:
+            {
+                boolean preIndex = (instr & generateMask(24, 24)) > 0;
+                boolean addOffset = (instr & generateMask(23,23)) > 0;
+                boolean writeBack  = (instr & generateMask(21,21)) > 0;
+                boolean load = (instr & generateMask(20,20)) > 0;
+                int rn = removeTrailingZeroes(instr & generateMask(16,19));
+                int rd = removeTrailingZeroes(instr & generateMask(15,12));
+                int offset = removeTrailingZeroes(instr & generateMask(8,11)); //get higher nibble
+                byte sh = (byte)removeTrailingZeroes(instr & generateMask(5,6));//don't worry about this
+
+                //detemine if instr is register or imm indexed
+                if (offset == 0) //register indexed
+                {
+                    int rm = removeTrailingZeroes(instr & generateMask(0,3));
+                    offset = registers[rm];
+                }
+                else
+                {
+                    offset <<= 4;
+                    offset &= ~0xff; //clean lower nibble
+                    offset +=(byte)removeTrailingZeroes(instr & generateMask(0,3));//get lower nibble
+                }
+
+                //calculate effective addr
+                int addr = registers[rn];
+                if (preIndex)
+                {
+                    if (addOffset)
+                        addr += offset;
+                    else
+                        addr = addr - offset;
+                }
+                
+                if (load)
+                {
+                    byte data1 = dataMem.readByte(addr, dataBound);
+                    byte data2 = dataMem.readByte(addr+1, dataBound);
+                    int data = ((((int)data2) << 8) & 0xff) + (((int)data1) & 0xff);
+                    registers[rd] = data;
+                }
+                else //store
+                {
+                    byte byte1 = (byte)removeTrailingZeroes((registers[rd] & generateMask(0, 7)));
+                    byte byte2 = (byte)removeTrailingZeroes((registers[rd] & generateMask(8, 15)));
+                    dataMem.writeByte(addr, byte1, dataBound);
+                    dataMem.writeByte(addr + 1, byte2, dataBound);
+                }
+
+                if (!preIndex)//postIndex
+                {
+                    if (addOffset)
+                        addr += offset;
+                    else
+                        addr = addr - offset;
+                }
+
+                if (writeBack)
+                {
+                    registers[rn] = addr;
+                }
                 //return ARMV4_TypeLoadStoreExtra;
                 break;
+            }
             /* Load signed half-word */
             case 0x2:
             case 0x3:
