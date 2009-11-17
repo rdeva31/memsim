@@ -16,7 +16,7 @@ public class Main {
         try
         {
             System.out.println("runnning");
-            p.setCoreMemoryContents(0, new java.io.File("C:\\Documents and Settings\\sound\\Desktop\\b.out"), null);
+            p.setCoreMemoryContents(0, new java.io.File("C:\\Documents and Settings\\sound\\Desktop\\a.out"), null);
             p.run();
         }
         catch (Exception e)
