@@ -79,7 +79,81 @@ public class Core implements Runnable {
                         parseInstrExt0(instruction);
                     } else {
                         /* dataproc immediate shift */
+                        int opcode = removeTrailingZeroes(instruction & generateMask(21,24));
+                        boolean changeStatus = (instruction & generateMask(20,20)) > 0;
+                        int rn = removeTrailingZeroes(instruction & generateMask(16,19));
+                        int rd = removeTrailingZeroes(instruction & generateMask(12,15));
+                        int immShift = removeTrailingZeroes(instruction & generateMask(4,11));
+                        int rm = removeTrailingZeroes(instruction & generateMask(0,3));
 
+                        int op2 = registers[rm] << immShift;
+                        int result;
+                        switch(opcode)
+                        {
+                            case 0: //AND
+                                result = registers[rd] = registers[rn] & op2;
+                                break;
+                            case 1: //EOR
+                                result = registers[rd] = registers[rn] ^ op2;
+                                break;
+                            case 2:
+                                result = registers[rd] = registers[rn] - op2;
+                                break;
+                            case 3:
+                                result = registers[rd] = op2 - registers[rn];
+                                break;
+                            case 4:
+                                result = registers[rd] = registers[rn] + op2; //FIXME: bug here not checking for overlfow
+                                break;
+                            case 5:
+                                result = registers[rd] = registers[rn] + op2 + (cpsrRegister & C_MASK);
+                                break;
+                            case 6:
+                                result = registers[rd] = registers[rn] - op2 + (cpsrRegister & C_MASK) - 1;
+                                break;
+                            case 7:
+                                result = registers[rd] = op2 - registers[rn] + (cpsrRegister & C_MASK) - 1;
+                                break;
+                            case 8:
+                                result = registers[rn] & op2;
+                                break;
+                            case 9:
+                                result = registers[rn] ^ op2;
+                                break;
+                            case 10:
+                                result = registers[rn] - op2;
+                                break;
+                            case 11:
+                                result = registers[rn] + op2;
+                                break;
+                            case 12:
+                                result = registers[rd] = registers[rn] | op2;
+                                break;
+                            case 13:
+                                result = registers[rd] = op2;
+                                break;
+                            case 14:
+                                result = registers[rd] = registers[rn] & ~op2;
+                                break;
+                            default: //15
+                                result = registers[rd] = ~op2;
+                        }
+
+                        if (changeStatus)
+                        {
+                            if (result == 0)
+                                cpsrRegister |= Z_MASK;
+                            else
+                                cpsrRegister &= ~Z_MASK;
+
+                            if (result < 0)
+                                cpsrRegister |= N_MASK;
+                            else
+                                cpsrRegister &= ~N_MASK;
+
+                            //FIXME: need to check for overflow
+
+                        }
                         //return ARMV4_TypeDataProcessing;
                     }
                 } else if (removeTrailingZeroes(instruction & generateMask(7,7)) == 0) {
@@ -107,16 +181,16 @@ public class Core implements Runnable {
                     
                     if (removeTrailingZeroes(instruction & generateMask(21,21)) == 1) {
                         /* MSR immediate */
-
+                        throw new UnimplementedInstructionException("msr is not implemented");
                         //return ARMV4_TypeStatusRegister;
                     } else {
                         /* undefined */
-
+                        throw new UnknownFormatException();
                         //return ARMV4_TypeUndefined;
                     }
                 } else {
                     /* dataproc immediate */
-
+                    
                     //return ARMV4_TypeDataProcessing;
                 }
                 break;
@@ -566,6 +640,7 @@ public class Core implements Runnable {
                 {
                     registers[rn] = addr;
                 }
+
                 //return ARMV4_TypeLoadStoreExtra;
                 break;
             }
@@ -578,23 +653,178 @@ public class Core implements Runnable {
                     /* Register offset */
                     if (removeTrailingZeroes(instr & generateMask(5, 5)) == 1) {
                         /* ldrsh */
+                        boolean preIndex = (instr & generateMask(24, 24)) > 0;
+                        boolean addOffset = (instr & generateMask(23,23)) > 0;
+                        boolean writeBack  = (instr & generateMask(21,21)) > 0;
+                        boolean load = (instr & generateMask(20,20)) > 0;
+                        int rn = removeTrailingZeroes(instr & generateMask(16,19));
+                        int rd = removeTrailingZeroes(instr & generateMask(15,12));
+                        int offset = removeTrailingZeroes(instr & generateMask(8,11)); //get higher nibble
+                        byte sh = (byte)removeTrailingZeroes(instr & generateMask(5,6));//don't worry about this
+                        int rm = removeTrailingZeroes(instr & generateMask(0,3));
 
+                        offset = registers[rm];
+
+                        int addr = registers[rn];
+                        if (preIndex)
+                        {
+                            if (addOffset)
+                                addr += offset;
+                            else
+                                addr = addr - offset;
+                        }
+
+                        byte data1 = dataMem.readByte(addr, dataBound);
+                        byte data2 = dataMem.readByte(addr+1, dataBound);
+                        int data = (data2 << 8) + data1; //note, I get sign extension
+                                                        //for free when converting
+                                                        //from byte to int
+
+                        
+                        registers[rd] = data;
+
+                        if (!preIndex)//postIndex
+                        {
+                            if (addOffset)
+                                addr += offset;
+                            else
+                                addr = addr - offset;
+                        }
+
+                        if (writeBack)
+                        {
+                            registers[rn] = addr;
+                        }
                         //return ARMV4_TypeLoadStoreExtra;
                     } else {
                         /* ldrsb */
+                        boolean preIndex = (instr & generateMask(24, 24)) > 0;
+                        boolean addOffset = (instr & generateMask(23,23)) > 0;
+                        boolean writeBack  = (instr & generateMask(21,21)) > 0;
+                        boolean load = (instr & generateMask(20,20)) > 0;
+                        int rn = removeTrailingZeroes(instr & generateMask(16,19));
+                        int rd = removeTrailingZeroes(instr & generateMask(15,12));
+                        int offset = removeTrailingZeroes(instr & generateMask(8,11)); //get higher nibble
+                        byte sh = (byte)removeTrailingZeroes(instr & generateMask(5,6));//don't worry about this
+                        int rm = removeTrailingZeroes(instr & generateMask(0,3));
 
+                        offset = registers[rm];
+
+                        int addr = registers[rn];
+                        if (preIndex)
+                        {
+                            if (addOffset)
+                                addr += offset;
+                            else
+                                addr = addr - offset;
+                        }
+
+                        byte data1 = dataMem.readByte(addr, dataBound);
+                        int data = data1; //free sign extension by converting
+                                            //byte to int!
+
+                        registers[rd] = data;
+
+                        if (!preIndex)//postIndex
+                        {
+                            if (addOffset)
+                                addr += offset;
+                            else
+                                addr = addr - offset;
+                        }
+
+                        if (writeBack)
+                        {
+                            registers[rn] = addr;
+                        }
                         //return ARMV4_TypeLoadStoreExtra;
                     }
-                } else if (removeTrailingZeroes(instr & generateMask(22, 22)) == 0
-                        && removeTrailingZeroes(instr & generateMask(20, 20)) == 0) {
+                } else if (removeTrailingZeroes(instr & generateMask(22, 22)) == 1
+                        && removeTrailingZeroes(instr & generateMask(20, 20)) == 1) {
                     /* Immediate offset */
                     if (removeTrailingZeroes(instr & generateMask(5, 5)) == 0) {
                         /* ldrsh */
+                        boolean preIndex = (instr & generateMask(24, 24)) > 0;
+                        boolean addOffset = (instr & generateMask(23,23)) > 0;
+                        boolean writeBack  = (instr & generateMask(21,21)) > 0;
+                        boolean load = (instr & generateMask(20,20)) > 0;
+                        int rn = removeTrailingZeroes(instr & generateMask(16,19));
+                        int rd = removeTrailingZeroes(instr & generateMask(15,12));
+                        int offset = removeTrailingZeroes(instr & generateMask(8,11)) << 4; //get higher nibble
+                        offset += removeTrailingZeroes(instr & generateMask(0,3));
+                        byte sh = (byte)removeTrailingZeroes(instr & generateMask(5,6));//don't worry about this
 
+                        int addr = registers[rn];
+                        if (preIndex)
+                        {
+                            if (addOffset)
+                                addr += offset;
+                            else
+                                addr = addr - offset;
+                        }
+
+                        byte data1 = dataMem.readByte(addr, dataBound);
+                        byte data2 = dataMem.readByte(addr+1, dataBound);
+                        int data = (data2 << 8) + data1; //note, I get sign extension
+                                                        //for free when converting
+                                                        //from byte to int
+
+                        registers[rd] = data;
+
+                        if (!preIndex)//postIndex
+                        {
+                            if (addOffset)
+                                addr += offset;
+                            else
+                                addr = addr - offset;
+                        }
+
+                        if (writeBack)
+                        {
+                            registers[rn] = addr;
+                        }
                         //return ARMV4_TypeLoadStoreExtra;
                     } else {
                         /* ldrsb */
+                        boolean preIndex = (instr & generateMask(24, 24)) > 0;
+                        boolean addOffset = (instr & generateMask(23,23)) > 0;
+                        boolean writeBack  = (instr & generateMask(21,21)) > 0;
+                        boolean load = (instr & generateMask(20,20)) > 0;
+                        int rn = removeTrailingZeroes(instr & generateMask(16,19));
+                        int rd = removeTrailingZeroes(instr & generateMask(15,12));
+                        int offset = removeTrailingZeroes(instr & generateMask(8,11)) << 4; //get higher nibble
+                        offset += removeTrailingZeroes(instr & generateMask(0,3));
+                        byte sh = (byte)removeTrailingZeroes(instr & generateMask(5,6));//don't worry about this
 
+                        int addr = registers[rn];
+                        if (preIndex)
+                        {
+                            if (addOffset)
+                                addr += offset;
+                            else
+                                addr = addr - offset;
+                        }
+
+                        byte data1 = dataMem.readByte(addr, dataBound);
+                        
+                        int data = data1; //note, I get sign extension
+                                           //for free when converting
+                                            //from byte to int
+
+                        registers[rd] = data;
+
+                        if (!preIndex)//postIndex
+                        {
+                            if (addOffset)
+                                addr += offset;
+                            else
+                                addr = addr - offset;
+                        }
+
+                        if (writeBack)
+                        {
+                            registers[rn] = addr;
+                        }
                         //return ARMV4_TypeLoadStoreExtra;
                     }
                 } else {
