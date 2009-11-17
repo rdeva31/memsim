@@ -196,32 +196,8 @@ public class Core implements Runnable {
                         }
 
 
-                        //perform shifting
-                        switch(shiftType)
-                        {
-                            case 0:
-                                op2 = registers[rm] << shiftAmount;
-                                break;
-                            case 1: //logic shift right
-                                int temp = registers[rm];
-                                for (int i = 0; i < shiftAmount; ++i)
-                                    temp = (temp >> 1) & ~(1<<31);
-                                op2 = temp;
-                                break;
-                            case 2: //arithmetic right shift
-                                op2 = registers[rm] >> shiftAmount;
-                                break;
-                            case 3:
-                                op2 = registers[rm];
-                                for (int i = 0; i < shiftAmount; ++i) //the % is there because rotatin 8 bit int by 9
-                                                        //is same as rotating once
-                                {
-                                    int temp2 = op2 & 1;
-                                    op2 >>= 1;
-                                    op2 &= 0xff;
-                                    op2 |= ((temp2 > 0) ? 0x80 : 0);
-                                }
-                        }
+                        op2 = shiftHelper(shiftType, shiftAmount, registers[rm]);
+                        
                         int result;
                         switch(opcode)
                         {
@@ -314,12 +290,87 @@ public class Core implements Runnable {
                     }
                 } else {
                     /* dataproc immediate */
-                    
+                    //TODO: implement this (can't find in ARM manual )
                     //return ARMV4_TypeDataProcessing;
                 }
                 break;
             case 0x2:
                 /* load/store immediate offset */
+                boolean offset = (instruction & generateMask(25, 25)) > 0;
+                boolean preIndex = (instruction & generateMask(24, 24)) > 0;
+                boolean addOffset = (instruction & generateMask(23,23)) > 0;
+                boolean transferByte = (instruction & generateMask(22,22)) > 0;
+                boolean writeBack  = (instruction & generateMask(21,21)) > 0;
+                boolean load = (instruction & generateMask(20,20)) > 0;
+                int rn = removeTrailingZeroes(instruction & generateMask(16,19));
+                int rd = removeTrailingZeroes(instruction & generateMask(15,12));
+                int imm = removeTrailingZeroes(instruction & generateMask(0,11));
+                
+
+                //detemine if instruction is register or imm indexed
+                if (offset) //register indexed
+                {
+                    int rm = removeTrailingZeroes(instruction & generateMask(0,3));
+                    int shiftType = removeTrailingZeroes(instruction & generateMask(5,6));
+                    int shiftAmount = removeTrailingZeroes(instruction & generateMask(7,11));
+                    imm = this.shiftHelper(shiftType, shiftAmount, registers[rm]);
+                }
+                else
+                {
+                    //nothing to do, default value is good
+                }
+
+                //calculate effective addr
+                int addr = registers[rn];
+                if (preIndex)
+                {
+                    if (addOffset)
+                        addr += imm;
+                    else
+                        addr = addr - imm;
+                }
+
+                if (load)
+                {
+                    int data;
+                    if (transferByte) //load a byte
+                    {
+                        data = dataMem.readByte(addr, dataBound) & 0xff;
+                    }
+                    else //load a word
+                    {
+                       data = dataMem.readWord(addr, dataBound);
+                    }
+                    registers[rd] = data;
+                }
+                else //store
+                {
+
+                    if (transferByte) //store a byte
+                    {
+                        byte byte1 = (byte)removeTrailingZeroes((registers[rd] & generateMask(0, 7)));
+                        dataMem.writeByte(addr, byte1, dataBound);
+                    }
+                    else //store a word
+                    {
+                        dataMem.writeWord(addr, registers[rd], dataBound);
+                    }
+                }
+
+
+                if (!preIndex)//postIndex
+                {
+                    if (addOffset)
+                        addr += imm;
+                    else
+                        addr = addr - imm;
+                }
+
+                if (writeBack)
+                {
+                    registers[rn] = addr;
+                }
+
 
                 //return ARMV4_TypeLoadStoreSingle;
                 break;
@@ -984,5 +1035,44 @@ public class Core implements Runnable {
 
         return x;
 
+    }
+
+    /**
+     * Helps with shifting operations in data processing instrs
+     * @param shiftType 2 bit value, where
+     * <code>
+     * 00 = logical left
+     * 01 = logical right
+     * 10 = arithmetic right
+     * 11 = rotate right
+     * </code>
+     * @param shiftAmount  Amount to do the shift by
+     * @param shiftValue Value to be shifted
+     * @return the shifted value of shiftValue
+     */
+    private int shiftHelper(int shiftType, int shiftAmount, int shiftValue)
+    {
+        switch (shiftType) {
+            case 0:
+                return shiftValue << shiftAmount;
+            case 1: //logic shift right
+                int temp = shiftValue;
+                for (int i = 0; i < shiftAmount; ++i) {
+                    temp = (temp >> 1) & ~(1 << 31);
+                }
+                return temp;
+            case 2: //arithmetic right shift
+                return shiftValue >> shiftAmount;
+            case 3:
+            default:
+                for (int i = 0; i < shiftAmount; ++i)
+                {
+                    int temp2 = shiftValue & 1;
+                    shiftValue >>= 1;
+                    shiftValue &= 0xff;
+                    shiftValue |= ((temp2 > 0) ? 0x80 : 0);
+                }
+                return shiftValue;
+        }
     }
 }
