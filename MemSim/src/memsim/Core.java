@@ -83,10 +83,19 @@ public class Core implements Runnable {
                         boolean changeStatus = (instruction & generateMask(20,20)) > 0;
                         int rn = removeTrailingZeroes(instruction & generateMask(16,19));
                         int rd = removeTrailingZeroes(instruction & generateMask(12,15));
-                        int immShift = removeTrailingZeroes(instruction & generateMask(4,11));
-                        int rm = removeTrailingZeroes(instruction & generateMask(0,3));
+                        int rotate = removeTrailingZeroes(instruction & generateMask(8,11));
+                        int imm = removeTrailingZeroes(instruction & generateMask(0,7));
 
-                        int op2 = registers[rm] << immShift;
+                        //rotate imm value
+                        for (int i = 0; i < rotate % 8; ++i) //the % is there because rotatin 8 bit int by 9
+                                                            //is same as rotating once
+                        {
+                            int temp = imm & (1<<7);
+                            imm <<= 1;
+                            imm = imm + ((temp > 0) ? 1 : 0);
+                        }
+                        
+                        int op2 = imm;
                         int result;
                         switch(opcode)
                         {
@@ -164,7 +173,122 @@ public class Core implements Runnable {
                         parseInstrExt1(instruction);
                     } else {
                         /* dataproc register shift */
+                        
+                        int opcode = removeTrailingZeroes(instruction & generateMask(21,24));
+                        boolean changeStatus = (instruction & generateMask(20,20)) > 0;
+                        int rn = removeTrailingZeroes(instruction & generateMask(16,19));
+                        int rd = removeTrailingZeroes(instruction & generateMask(12,15));
+                        int shift = removeTrailingZeroes(instruction & generateMask(4,11));
+                        int shiftType = removeTrailingZeroes(instruction & generateMask(5,6));
+                        int shiftAmount = 0;
+                        int rm = removeTrailingZeroes(instruction & generateMask(0,3));
 
+                        int op2 = 0;
+                        
+                        if ((shift & 1) == 0)
+                        {
+                            shiftAmount = removeTrailingZeroes(instruction & generateMask(7,11));
+                        }
+                        else
+                        {
+                            int rs = removeTrailingZeroes(instruction & generateMask(8,11));
+                            shiftAmount = registers[rs] & 0xff;
+                        }
+
+
+                        //perform shifting
+                        switch(shiftType)
+                        {
+                            case 0:
+                                op2 = registers[rm] << shiftAmount;
+                                break;
+                            case 1: //logic shift right
+                                int temp = registers[rm];
+                                for (int i = 0; i < shiftAmount; ++i)
+                                    temp = (temp >> 1) & ~(1<<31);
+                                op2 = temp;
+                                break;
+                            case 2: //arithmetic right shift
+                                op2 = registers[rm] >> shiftAmount;
+                                break;
+                            case 3:
+                                op2 = registers[rm];
+                                for (int i = 0; i < shiftAmount; ++i) //the % is there because rotatin 8 bit int by 9
+                                                        //is same as rotating once
+                                {
+                                    int temp2 = op2 & 1;
+                                    op2 >>= 1;
+                                    op2 &= 0xff;
+                                    op2 |= ((temp2 > 0) ? 0x80 : 0);
+                                }
+                        }
+                        int result;
+                        switch(opcode)
+                        {
+                            case 0: //AND
+                                result = registers[rd] = registers[rn] & op2;
+                                break;
+                            case 1: //EOR
+                                result = registers[rd] = registers[rn] ^ op2;
+                                break;
+                            case 2:
+                                result = registers[rd] = registers[rn] - op2;
+                                break;
+                            case 3:
+                                result = registers[rd] = op2 - registers[rn];
+                                break;
+                            case 4:
+                                result = registers[rd] = registers[rn] + op2; //FIXME: bug here not checking for overlfow
+                                break;
+                            case 5:
+                                result = registers[rd] = registers[rn] + op2 + (cpsrRegister & C_MASK);
+                                break;
+                            case 6:
+                                result = registers[rd] = registers[rn] - op2 + (cpsrRegister & C_MASK) - 1;
+                                break;
+                            case 7:
+                                result = registers[rd] = op2 - registers[rn] + (cpsrRegister & C_MASK) - 1;
+                                break;
+                            case 8:
+                                result = registers[rn] & op2;
+                                break;
+                            case 9:
+                                result = registers[rn] ^ op2;
+                                break;
+                            case 10:
+                                result = registers[rn] - op2;
+                                break;
+                            case 11:
+                                result = registers[rn] + op2;
+                                break;
+                            case 12:
+                                result = registers[rd] = registers[rn] | op2;
+                                break;
+                            case 13:
+                                result = registers[rd] = op2;
+                                break;
+                            case 14:
+                                result = registers[rd] = registers[rn] & ~op2;
+                                break;
+                            default: //15
+                                result = registers[rd] = ~op2;
+                        }
+
+                        if (changeStatus)
+                        {
+                            if (result == 0)
+                                cpsrRegister |= Z_MASK;
+                            else
+                                cpsrRegister &= ~Z_MASK;
+
+                            if (result < 0)
+                                cpsrRegister |= N_MASK;
+                            else
+                                cpsrRegister &= ~N_MASK;
+
+                            //FIXME: need to check for overflow
+
+                        }
                         /* ParseInstrDataProc(instr); */
                         //return ARMV4_TypeDataProcessing;
                     }
