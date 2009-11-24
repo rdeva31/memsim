@@ -50,23 +50,27 @@ public class Core implements Runnable {
     }
 
     public void run() {
-        for (int c = 0; c < programMem.getSize(); c += 4)
+        for (registers[15] = 0; registers[15] < programMem.getSize(); registers[15] += 4)
+        {
             try
             {
-                exec(programMem.readWord(c, programBound));
+                //TODO: check for condition codes here
+                exec(programMem.readWord(registers[15], programBound));
             }
             catch (Exception e)
             {
-                System.err.println("some exception occured while running a program");
+                System.err.println("some exception occured while running a program at $pc " + registers[15]);
                 e.printStackTrace(System.err);
+                break;
             }
-
+        }
     }
 
     private void exec(int instruction) throws UnknownFormatException, UnimplementedInstructionException,
             MemoryAccessException {
 
-        int op = removeTrailingZeroes(instruction & generateMask(25, 27));
+        System.out.printf("instr is %x\n", instruction);
+        int op = ((instruction & generateMask(25, 27)) >> 25) & 0x7;
         
         switch (op) {
             case 0x0:
@@ -84,17 +88,27 @@ public class Core implements Runnable {
                         int rn = removeTrailingZeroes(instruction & generateMask(16,19));
                         int rd = removeTrailingZeroes(instruction & generateMask(12,15));
                         int rotate = removeTrailingZeroes(instruction & generateMask(8,11));
+                        int i = removeTrailingZeroes(instruction & generateMask(25,25));
                         int imm = removeTrailingZeroes(instruction & generateMask(0,7));
 
-                        //rotate imm value
-                        for (int i = 0; i < rotate % 8; ++i) //the % is there because rotatin 8 bit int by 9
-                                                            //is same as rotating once
+                        if (i == 0)
                         {
-                            int temp = imm & (1<<7);
-                            imm <<= 1;
-                            imm = imm + ((temp > 0) ? 1 : 0);
+                            int rm = removeTrailingZeroes(instruction & generateMask(0,3));
+                            int shiftType = removeTrailingZeroes(instruction & generateMask(5,6));
+                            int shiftAmount = removeTrailingZeroes(instruction & generateMask(7,11));
+                            imm = this.shiftHelper(shiftType, shiftAmount, registers[rm]);
                         }
-                        
+                        else
+                        {
+                            //rotate imm value
+                            for (int c = 0; c < rotate % 8; ++c) //the % is there because rotatin 8 bit int by 9
+                                                                //is same as rotating once
+                            {
+                                int temp = imm & (1<<7);
+                                imm <<= 1;
+                                imm = imm + ((temp > 0) ? 1 : 0);
+                            }
+                        }
                         int op2 = imm;
                         int result;
                         switch(opcode)
@@ -295,6 +309,7 @@ public class Core implements Runnable {
                 }
                 break;
             case 0x2:
+            {
                 /* load/store immediate offset */
                 boolean offset = (instruction & generateMask(25, 25)) > 0;
                 boolean preIndex = (instruction & generateMask(24, 24)) > 0;
@@ -303,7 +318,7 @@ public class Core implements Runnable {
                 boolean writeBack  = (instruction & generateMask(21,21)) > 0;
                 boolean load = (instruction & generateMask(20,20)) > 0;
                 int rn = removeTrailingZeroes(instruction & generateMask(16,19));
-                int rd = removeTrailingZeroes(instruction & generateMask(15,12));
+                int rd = removeTrailingZeroes(instruction & generateMask(12,15));
                 int imm = removeTrailingZeroes(instruction & generateMask(0,11));
                 
 
@@ -374,6 +389,7 @@ public class Core implements Runnable {
 
                 //return ARMV4_TypeLoadStoreSingle;
                 break;
+            }
             case 0x3:
                 if (removeTrailingZeroes(instruction & generateMask(4,4)) == 0) {
                     /* load/store register offset */
@@ -387,7 +403,50 @@ public class Core implements Runnable {
                 break;
             case 0x4:
                 /* load/store multiple */
+                boolean preIndex = (instruction & generateMask(24,24)) != 0;
+                boolean addOffset = (instruction & generateMask(23,23)) != 0;
+                boolean forcePSR = (instruction & generateMask(22,22)) != 0; //i'm not implementing this
+                boolean writeBack = (instruction & generateMask(21,21)) != 0;
+                boolean load = (instruction & generateMask(20,20)) != 0;
 
+                int rn = ((instruction & generateMask(16,19)) >> 16) & 0xf;
+                int registerList = ((instruction & generateMask(0,15)) >> 16) & 0xffff;
+
+                int addr = registers[rn];
+
+                for (int i = 0; i < 16; ++i)
+                {
+                    if (preIndex)
+                    {
+                        if (addOffset)
+                            addr += 4;
+                        else
+                            addr = addr - 4;
+                    }
+
+                    if(((registerList >> i) & 1) != 0) //need to load/store register
+                    {
+                        if (load)
+                        {
+                            registers[i] = dataMem.readWord(addr, dataBound);
+                        }
+                        else //store
+                        {
+                            dataMem.writeWord(addr, registers[i], dataBound);
+                        }
+                    }
+
+                    if (!preIndex)
+                    {
+                        if (addOffset)
+                            addr += 4;
+                        else
+                            addr = addr - 4;
+                    }
+                }
+
+                if (writeBack)
+                    registers[rn] = addr;
                 //return ARMV4_TypeLoadStoreMultiple;
                 break;
             case 0x5:
