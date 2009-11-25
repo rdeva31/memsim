@@ -71,31 +71,31 @@ public class Core implements Runnable {
 
         System.out.printf("instr is %x\n", instruction);
         int op = ((instruction & generateMask(25, 27)) >> 25) & 0x7;
-        
+
         switch (op) {
             case 0x0:
 
-                if (removeTrailingZeroes(instruction & generateMask(4,4)) == 0) {
-                    if (removeTrailingZeroes(instruction & generateMask(24,24)) == 1
-                        && removeTrailingZeroes(instruction & generateMask(23,23)) == 0
-                        && removeTrailingZeroes(instruction & generateMask(20,20)) == 0) {
+                if ((((instruction & generateMask(4,4)) >> 4) & 0x1) == 0) {
+                    if ((((instruction & generateMask(24,24)) >> 24) & 0x1) == 1
+                        && (((instruction & generateMask(23,23)) >> 23) & 0x1) == 0
+                        && (((instruction & generateMask(20,20)) >> 20) & 0x1) == 0) {
 
                         parseInstrExt0(instruction);
                     } else {
                         /* dataproc immediate shift */
-                        int opcode = removeTrailingZeroes(instruction & generateMask(21,24));
+                        int opcode = ((instruction & generateMask(21,24)) >> 21) & 0xf;
                         boolean changeStatus = (instruction & generateMask(20,20)) > 0;
-                        int rn = removeTrailingZeroes(instruction & generateMask(16,19));
-                        int rd = removeTrailingZeroes(instruction & generateMask(12,15));
-                        int rotate = removeTrailingZeroes(instruction & generateMask(8,11));
-                        int i = removeTrailingZeroes(instruction & generateMask(25,25));
-                        int imm = removeTrailingZeroes(instruction & generateMask(0,7));
+                        int rn = ((instruction & generateMask(16,19)) >> 16) & 0xf;
+                        int rd = ((instruction & generateMask(12,15)) >> 12) & 0xf;
+                        int rotate = ((instruction & generateMask(8,11)) >> 8) & 0xf;
+                        int i = ((instruction & generateMask(25,25)) >> 25) & 0x1;
+                        int imm = ((instruction & generateMask(0,7)) >> 0) & 0xff;
 
                         if (i == 0)
                         {
-                            int rm = removeTrailingZeroes(instruction & generateMask(0,3));
-                            int shiftType = removeTrailingZeroes(instruction & generateMask(5,6));
-                            int shiftAmount = removeTrailingZeroes(instruction & generateMask(7,11));
+                            int rm = ((instruction & generateMask(0,3)) >> 0) & 0xf;
+                            int shiftType = ((instruction & generateMask(5,6)) >> 5) & 0x3;
+                            int shiftAmount = ((instruction & generateMask(7,11)) >> 7) & 0xf;
                             imm = this.shiftHelper(shiftType, shiftAmount, registers[rm]);
                         }
                         else
@@ -179,39 +179,39 @@ public class Core implements Runnable {
                         }
                         //return ARMV4_TypeDataProcessing;
                     }
-                } else if (removeTrailingZeroes(instruction & generateMask(7,7)) == 0) {
-                    if (removeTrailingZeroes(instruction & generateMask(24,24)) == 1
-                        && removeTrailingZeroes(instruction & generateMask(23,23)) == 0
-                        && removeTrailingZeroes(instruction & generateMask(20,20)) == 0) {
+                } else if ((((instruction & generateMask(7,7)) >> 7) & 1) == 0) {
+                    if (((((instruction & generateMask(24,24)) >> 24)) & 0x1) == 1
+                        && (((instruction & generateMask(23,23)) >> 23) & 0x1) == 0
+                        && (((instruction & generateMask(20,20)) >> 20) & 0x1) == 0) {
                         /* misc */
                         parseInstrExt1(instruction);
                     } else {
                         /* dataproc register shift */
-                        
-                        int opcode = removeTrailingZeroes(instruction & generateMask(21,24));
+
+                        int opcode = ((instruction & generateMask(21,24)) >> 21) & 0xf;
                         boolean changeStatus = (instruction & generateMask(20,20)) > 0;
-                        int rn = removeTrailingZeroes(instruction & generateMask(16,19));
-                        int rd = removeTrailingZeroes(instruction & generateMask(12,15));
-                        int shift = removeTrailingZeroes(instruction & generateMask(4,11));
-                        int shiftType = removeTrailingZeroes(instruction & generateMask(5,6));
+                        int rn = ((instruction & generateMask(16,19)) >> 16) & 0xf;
+                        int rd = ((instruction & generateMask(12,15)) >> 12) & 0xf;
+                        int shift = ((instruction & generateMask(4,11)) >> 4) & 0xff;
+                        int shiftType = ((instruction & generateMask(5,6)) >> 5) & 0x3;
                         int shiftAmount = 0;
-                        int rm = removeTrailingZeroes(instruction & generateMask(0,3));
+                        int rm = ((instruction & generateMask(0,3)) >> 0) & 0xf;
 
                         int op2 = 0;
-                        
+
                         if ((shift & 1) == 0)
                         {
-                            shiftAmount = removeTrailingZeroes(instruction & generateMask(7,11));
+                            shiftAmount = ((instruction & generateMask(7,11)) >> 7) & 0x1f;
                         }
                         else
                         {
-                            int rs = removeTrailingZeroes(instruction & generateMask(8,11));
+                            int rs = ((instruction & generateMask(8,11)) >> 8) & 0xf;
                             shiftAmount = registers[rs] & 0xff;
                         }
 
 
                         op2 = shiftHelper(shiftType, shiftAmount, registers[rm]);
-                        
+
                         int result;
                         switch(opcode)
                         {
@@ -282,18 +282,18 @@ public class Core implements Runnable {
                         /* ParseInstrDataProc(instr); */
                         //return ARMV4_TypeDataProcessing;
                     }
-                } else if (removeTrailingZeroes(instruction & generateMask(4,4)) == 1
-                            && removeTrailingZeroes(instruction & generateMask(7,7)) == 1) {
+                } else if ((((instruction & generateMask(4,4)) >> 4) & 0x1) == 1
+                            && (((instruction & generateMask(7,7)) >> 7) & 0x1) == 1) {
                     /* Multipliers, extra load/stores */
                     parseInstrExt2(instruction);
                 }
                 break;
             case 0x1:
-                if (removeTrailingZeroes(instruction & generateMask(24,24)) == 1
-                    && removeTrailingZeroes(instruction & generateMask(23,23)) == 0
-                    && removeTrailingZeroes(instruction & generateMask(20,20)) == 0) {
-                    
-                    if (removeTrailingZeroes(instruction & generateMask(21,21)) == 1) {
+                if ((((instruction & generateMask(24,24)) >> 24) & 0x1) == 1
+                    && (((instruction & generateMask(23,23)) >> 23) & 0x1) == 0
+                    && (((instruction & generateMask(20,20)) >> 20) & 0x1) == 0) {
+
+                    if ((((instruction & generateMask(21,21)) >> 21) & 0x1) == 1) {
                         /* MSR immediate */
                         throw new UnimplementedInstructionException("msr is not implemented");
                         //return ARMV4_TypeStatusRegister;
@@ -317,17 +317,17 @@ public class Core implements Runnable {
                 boolean transferByte = (instruction & generateMask(22,22)) > 0;
                 boolean writeBack  = (instruction & generateMask(21,21)) > 0;
                 boolean load = (instruction & generateMask(20,20)) > 0;
-                int rn = removeTrailingZeroes(instruction & generateMask(16,19));
-                int rd = removeTrailingZeroes(instruction & generateMask(12,15));
-                int imm = removeTrailingZeroes(instruction & generateMask(0,11));
-                
+                int rn = ((instruction & generateMask(16,19)) >> 16) & 0xf;
+                int rd = ((instruction & generateMask(12,15)) >> 12) & 0xf;
+                int imm = ((instruction & generateMask(0,11)) >> 0) & 0x3ff;
+
 
                 //detemine if instruction is register or imm indexed
                 if (offset) //register indexed
                 {
-                    int rm = removeTrailingZeroes(instruction & generateMask(0,3));
-                    int shiftType = removeTrailingZeroes(instruction & generateMask(5,6));
-                    int shiftAmount = removeTrailingZeroes(instruction & generateMask(7,11));
+                    int rm = ((instruction & generateMask(0,3)) >> 0) & 0xf;
+                    int shiftType = ((instruction & generateMask(5,6)) >> 5) & 0x3;
+                    int shiftAmount = ((instruction & generateMask(7,11)) >> 7) & 0x1f;
                     imm = this.shiftHelper(shiftType, shiftAmount, registers[rm]);
                 }
                 else
@@ -363,7 +363,7 @@ public class Core implements Runnable {
 
                     if (transferByte) //store a byte
                     {
-                        byte byte1 = (byte)removeTrailingZeroes((registers[rd] & generateMask(0, 7)));
+                        byte byte1 = (byte)(registers[rd] & generateMask(0, 7));
                         dataMem.writeByte(addr, byte1, dataBound);
                     }
                     else //store a word
@@ -391,7 +391,7 @@ public class Core implements Runnable {
                 break;
             }
             case 0x3:
-                if (removeTrailingZeroes(instruction & generateMask(4,4)) == 0) {
+                if ((((instruction & generateMask(4,4)) >> 4) & 0x1) == 0) {
                     /* load/store register offset */
 
                     //return ARMV4_TypeLoadStoreSingle;
@@ -461,12 +461,12 @@ public class Core implements Runnable {
                 //return ARMV4_TypeLoadStoreCoprocessor;
                 break;
             case 0x7:
-                if (removeTrailingZeroes(instruction & generateMask(24,24)) == 1) {
+                if ((((instruction & generateMask(24,24)) >> 24) & 0x1) == 1) {
                     /* SWI */
                     throw new UnimplementedInstructionException("SWI is not implemented");
                     //return ARMV4_TypeSoftwareInterrupt;
                 } else {
-                    if (removeTrailingZeroes(instruction & generateMask(4,4)) == 1) {
+                    if ((((instruction & generateMask(4,4)) >> 4) & 0x1) == 1) {
                         /* co-processor register transfers (MRC/MCR) */
                         throw new UnimplementedInstructionException("MRC/MCR not implemented");
                         //return ARMV4_TypeRegisterTransferCoprocessor;
@@ -489,8 +489,8 @@ public class Core implements Runnable {
             UnimplementedInstructionException, UnknownFormatException
     {
         /* this function depends on prior check of whether bit4 is zero */
-        if (removeTrailingZeroes((instr & generateMask(24, 27))) == 0) {
-            if (removeTrailingZeroes((instr & generateMask(21, 21))) == 1) {
+        if ((((instr & generateMask(24, 27)) >> 24) & 0xf) == 0) {
+            if ((((instr & generateMask(21, 21)) >> 21) & 0x1) == 1) {
                 /* TODO: Add bits[15:12] = 1 [11:8] = 0 */
                 /* msr */
                 throw new UnimplementedInstructionException("msr is not implemented");
@@ -502,7 +502,7 @@ public class Core implements Runnable {
                // return ARMV4_TypeStatusRegister;
             }
         } else {
-            if (removeTrailingZeroes((instr & generateMask(7, 7))) == 1) {
+            if ((((instr & generateMask(7, 7)) >> 7) & 0x1) == 1) {
                 /* Undefined DSP instruction */
                 throw new UnknownFormatException("instruction cannot be parsed");
                 //return ARMV4_TypeUndefined;
@@ -514,16 +514,16 @@ public class Core implements Runnable {
         //return ARMV4_TypeUndefined;
     }
 
-    private void parseInstrExt1(int instr) throws 
+    private void parseInstrExt1(int instr) throws
             UnknownFormatException, UnimplementedInstructionException {
         /* opcode = bit[22:21] and bit[7:4] */
         int op = (instr >> 21) & 0x3;
-        switch (removeTrailingZeroes(instr & generateMask(24, 27))) {
+        switch ((((instr & generateMask(24, 27)) >> 24) & 0xf)) {
             case 0x1:
                 /* BX or (undefined) CLZ */
                 if (op == 0x1) {
                     /* BX */
-                    int rd = removeTrailingZeroes(instr & generateMask(0, 4));
+                    int rd = (((instr & generateMask(0, 4)) >> 0) & 0x1f);
                     registers[14] = registers[15] + 4; //link register := PC + 4
                     registers[15] = registers[rd]; //PC := Rn
                     //return ARMV4_TypeBranch;
@@ -561,15 +561,15 @@ public class Core implements Runnable {
         switch (op) {
             /* Multiply, multiply long, swap */
             case 0x0:
-                if (removeTrailingZeroes(instr & generateMask(22, 25)) == 0) {
-                    if (removeTrailingZeroes(instr & generateMask(21, 21)) == 1) {
+                if ((((instr & generateMask(22, 25)) >> 22) & 0xf) == 0) {
+                    if ((((instr & generateMask(21, 21)) >> 21) & 0x1) == 1) {
                         /* mla */
-                        boolean updateStatus = 
-                                removeTrailingZeroes(instr & generateMask(20,20)) == 1;
-                        int rd = removeTrailingZeroes(instr & generateMask(16, 19));
-                        int rn = removeTrailingZeroes(instr & generateMask(12, 15));
-                        int rs = removeTrailingZeroes(instr & generateMask(8, 11));
-                        int rm = removeTrailingZeroes(instr & generateMask(0, 3));
+                        boolean updateStatus =
+                                (((instr & generateMask(20,20)) >> 20) & 0x1) == 1;
+                        int rd = (((instr & generateMask(16, 19)) >> 16) & 0xf);
+                        int rn = (((instr & generateMask(12, 15)) >> 12) & 0xf);
+                        int rs = (((instr & generateMask(8, 11)) >> 8) & 0xf);
+                        int rm = (((instr & generateMask(0, 3)) >> 0) & 0xf);
 
                         //to take care of overflows, do math in BigInt and mask
                         //down to 32 bits if necessary
@@ -608,15 +608,15 @@ public class Core implements Runnable {
                             else
                                 cpsrRegister &= ~Z_MASK;
                         }
-                            
+
                         //return ARMV4_TypeMultiplication;
                     } else {
                         /* mul */
                         boolean updateStatus =
-                                removeTrailingZeroes(instr & generateMask(20,20)) == 1;
-                        int rd = removeTrailingZeroes(instr & generateMask(16, 19));
-                        int rs = removeTrailingZeroes(instr & generateMask(8, 11));
-                        int rm = removeTrailingZeroes(instr & generateMask(0, 3));
+                                (((instr & generateMask(20,20)) >> 20) & 0x1) == 1;
+                        int rd = (((instr & generateMask(16, 19)) >> 16) & 0xf);
+                        int rs = (((instr & generateMask(8, 11)) >> 8) & 0xf);
+                        int rm = (((instr & generateMask(0, 3)) >> 0) & 0xf);
 
                         BigInteger rmBig = new BigInteger(Integer.toString(registers[rm])),
                                 rsBig = new BigInteger(Integer.toString(registers[rs])),
@@ -652,17 +652,17 @@ public class Core implements Runnable {
                                 cpsrRegister &= ~Z_MASK;
 
                         }
-                        
+
                         //return ARMV4_TypeMultiplication;
                     }
-                } else if (removeTrailingZeroes(instr & generateMask(23, 24)) == 1) {
-                    int rdHigh = removeTrailingZeroes(instr & generateMask(16,19)),
-                                rdLow = removeTrailingZeroes(instr & generateMask(12,15)),
-                                rs = removeTrailingZeroes(instr & generateMask(8,11)),
-                                rm = removeTrailingZeroes(instr & generateMask(0,3));
-                    boolean updateStatus = removeTrailingZeroes(instr & generateMask(20,20)) > 0;
-                    
-                    switch (removeTrailingZeroes(instr & generateMask(21, 22))) {
+                } else if ((((instr & generateMask(23, 24)) >> 23) & 0x3) == 1) {
+                    int rdHigh = ((instr & generateMask(16,19)) >> 16) & 0xf,
+                                rdLow = ((instr & generateMask(12,15)) >> 12) & 0xf,
+                                rs = ((instr & generateMask(8,11)) >> 8) & 0xf,
+                                rm = ((instr & generateMask(0,3)) >> 0) & 0xf;
+                    boolean updateStatus = (((instr & generateMask(20,20)) >> 20) & 0x1) > 0;
+
+                    switch ((((instr & generateMask(21, 22)) >> 21) & 0x3)) {
                         case 0x0:
                         {
                             BigInteger result =
@@ -700,7 +700,7 @@ public class Core implements Runnable {
                                     new BigInteger(Integer.toString(registers[rs]))
                                     .multiply(new BigInteger(Integer.toString(registers[rm])));
                             BigInteger result = toAccumulateBig.add(multiplyResult);
-                            
+
                             byte[] resultBytes = result.toByteArray();
                             registers[rdHigh] = resultBytes[0];
                             registers[rdLow] = resultBytes[1];
@@ -788,11 +788,11 @@ public class Core implements Runnable {
                         }
                     }
                 } else if (((instr >> 20) & 0x1B) == 0x10) {
-                    if (removeTrailingZeroes(instr & generateMask(22, 22)) == 1) {
+                    if ((((instr & generateMask(22, 22)) >> 22) & 0x1) == 1) {
                         /* swapb */
-                        int rn = removeTrailingZeroes(instr & generateMask(16,19)),
-                            rd = removeTrailingZeroes(instr & generateMask(12,15)),
-                            rm = removeTrailingZeroes(instr & generateMask(0,3));
+                        int rn = ((instr & generateMask(16,19)) >> 16) & 0xf,
+                            rd = ((instr & generateMask(12,15)) >> 12) & 0xf,
+                            rm = ((instr & generateMask(0,3)) >> 0) & 0xf;
 
                         byte rnData = dataMem.readByte(rn, dataBound);
                         dataMem.writeByte(rn, (byte)(registers[rm] & generateMask(0,7)), dataBound);
@@ -800,9 +800,9 @@ public class Core implements Runnable {
                         //return ARMV4_TypeAtomicSwap;
                     } else {
                         /* swp */
-                        int rn = removeTrailingZeroes(instr & generateMask(16,19)),
-                            rd = removeTrailingZeroes(instr & generateMask(12,15)),
-                            rm = removeTrailingZeroes(instr & generateMask(0,3));
+                        int rn = ((instr & generateMask(16,19)) >> 16) & 0xf,
+                            rd = ((instr & generateMask(12,15)) >> 12) & 0xf,
+                            rm = ((instr & generateMask(0,3)) >> 0) & 0xf;
 
                         int rnData = dataMem.readWord(rn, dataBound);
                         dataMem.writeWord(rn, registers[rm], dataBound);
@@ -819,22 +819,22 @@ public class Core implements Runnable {
                 boolean addOffset = (instr & generateMask(23,23)) > 0;
                 boolean writeBack  = (instr & generateMask(21,21)) > 0;
                 boolean load = (instr & generateMask(20,20)) > 0;
-                int rn = removeTrailingZeroes(instr & generateMask(16,19));
-                int rd = removeTrailingZeroes(instr & generateMask(15,12));
-                int offset = removeTrailingZeroes(instr & generateMask(8,11)); //get higher nibble
-                byte sh = (byte)removeTrailingZeroes(instr & generateMask(5,6));//don't worry about this
+                int rn = ((instr & generateMask(16,19)) >> 16) & 0xf;
+                int rd = ((instr & generateMask(12,15)) >> 15) & 0xf;
+                int offset = ((instr & generateMask(8,11)) >> 8) & 0xf; //get higher nibble
+                byte sh = (byte)(((instr & generateMask(5,6)) >> 5) & 0x3);//don't worry about this
 
                 //detemine if instr is register or imm indexed
                 if (offset == 0) //register indexed
                 {
-                    int rm = removeTrailingZeroes(instr & generateMask(0,3));
+                    int rm = ((instr & generateMask(0,3)) >> 0) & 0xf;
                     offset = registers[rm];
                 }
                 else
                 {
                     offset <<= 4;
                     offset &= ~0xff; //clean lower nibble
-                    offset +=(byte)removeTrailingZeroes(instr & generateMask(0,3));//get lower nibble
+                    offset +=(byte)((instr & generateMask(0,3)) >> 0) & 0xf;//get lower nibble
                 }
 
                 //calculate effective addr
@@ -846,7 +846,7 @@ public class Core implements Runnable {
                     else
                         addr = addr - offset;
                 }
-                
+
                 if (load)
                 {
                     byte data1 = dataMem.readByte(addr, dataBound);
@@ -856,8 +856,8 @@ public class Core implements Runnable {
                 }
                 else //store
                 {
-                    byte byte1 = (byte)removeTrailingZeroes((registers[rd] & generateMask(0, 7)));
-                    byte byte2 = (byte)removeTrailingZeroes((registers[rd] & generateMask(8, 15)));
+                    byte byte1 = (byte)(registers[rd] & generateMask(0, 7));
+                    byte byte2 = (byte)(registers[rd] & generateMask(8, 15));
                     dataMem.writeByte(addr, byte1, dataBound);
                     dataMem.writeByte(addr + 1, byte2, dataBound);
                 }
@@ -882,20 +882,20 @@ public class Core implements Runnable {
             case 0x2:
             case 0x3:
                 /* TODO: check for L = 0 && S = 1 which is unpredictable */
-                if (removeTrailingZeroes(instr & generateMask(22, 22)) == 0
-                    && removeTrailingZeroes(instr & generateMask(20, 20)) == 1) {
+                if ((((instr & generateMask(22, 22)) >> 22) & 0x1) == 0
+                    && (((instr & generateMask(20, 20)) >> 20) & 0x1) == 1) {
                     /* Register offset */
-                    if (removeTrailingZeroes(instr & generateMask(5, 5)) == 1) {
+                    if ((((instr & generateMask(5, 5)) >> 5) & 0x1) == 1) {
                         /* ldrsh */
                         boolean preIndex = (instr & generateMask(24, 24)) > 0;
                         boolean addOffset = (instr & generateMask(23,23)) > 0;
                         boolean writeBack  = (instr & generateMask(21,21)) > 0;
                         boolean load = (instr & generateMask(20,20)) > 0;
-                        int rn = removeTrailingZeroes(instr & generateMask(16,19));
-                        int rd = removeTrailingZeroes(instr & generateMask(15,12));
-                        int offset = removeTrailingZeroes(instr & generateMask(8,11)); //get higher nibble
-                        byte sh = (byte)removeTrailingZeroes(instr & generateMask(5,6));//don't worry about this
-                        int rm = removeTrailingZeroes(instr & generateMask(0,3));
+                        int rn = ((instr & generateMask(16,19)) >> 16) & 0x3;
+                        int rd = ((instr & generateMask(15,12)) >> 15) & 0xf;
+                        int offset = ((instr & generateMask(8,11)) >> 8) & 0xf; //get higher nibble
+                        byte sh = (byte)(((instr & generateMask(5,6)) >> 5) & 0x3);//don't worry about this
+                        int rm = ((instr & generateMask(0,3)) >> 0) & 0xf;
 
                         offset = registers[rm];
 
@@ -914,7 +914,7 @@ public class Core implements Runnable {
                                                         //for free when converting
                                                         //from byte to int
 
-                        
+
                         registers[rd] = data;
 
                         if (!preIndex)//postIndex
@@ -936,11 +936,11 @@ public class Core implements Runnable {
                         boolean addOffset = (instr & generateMask(23,23)) > 0;
                         boolean writeBack  = (instr & generateMask(21,21)) > 0;
                         boolean load = (instr & generateMask(20,20)) > 0;
-                        int rn = removeTrailingZeroes(instr & generateMask(16,19));
-                        int rd = removeTrailingZeroes(instr & generateMask(15,12));
-                        int offset = removeTrailingZeroes(instr & generateMask(8,11)); //get higher nibble
-                        byte sh = (byte)removeTrailingZeroes(instr & generateMask(5,6));//don't worry about this
-                        int rm = removeTrailingZeroes(instr & generateMask(0,3));
+                        int rn = ((instr & generateMask(16,19)) >> 16) & 0xf;
+                        int rd = ((instr & generateMask(15,12)) >> 15) & 0xf;
+                        int offset = ((instr & generateMask(8,11)) >> 8) & 0xf; //get higher nibble
+                        byte sh = (byte)(((instr & generateMask(5,6)) >> 5) & 0x3);//don't worry about this
+                        int rm = ((instr & generateMask(0,3)) >> 0) & 0xf;
 
                         offset = registers[rm];
 
@@ -973,20 +973,20 @@ public class Core implements Runnable {
                         }
                         //return ARMV4_TypeLoadStoreExtra;
                     }
-                } else if (removeTrailingZeroes(instr & generateMask(22, 22)) == 1
-                        && removeTrailingZeroes(instr & generateMask(20, 20)) == 1) {
+                } else if ((((instr & generateMask(22, 22)) >> 22) & 0x1) == 1
+                        && (((instr & generateMask(20, 20)) >> 20) & 0x1) == 1) {
                     /* Immediate offset */
-                    if (removeTrailingZeroes(instr & generateMask(5, 5)) == 0) {
+                    if ((((instr & generateMask(5, 5)) >> 5) & 0x1) == 0) {
                         /* ldrsh */
                         boolean preIndex = (instr & generateMask(24, 24)) > 0;
                         boolean addOffset = (instr & generateMask(23,23)) > 0;
                         boolean writeBack  = (instr & generateMask(21,21)) > 0;
                         boolean load = (instr & generateMask(20,20)) > 0;
-                        int rn = removeTrailingZeroes(instr & generateMask(16,19));
-                        int rd = removeTrailingZeroes(instr & generateMask(15,12));
-                        int offset = removeTrailingZeroes(instr & generateMask(8,11)) << 4; //get higher nibble
-                        offset += removeTrailingZeroes(instr & generateMask(0,3));
-                        byte sh = (byte)removeTrailingZeroes(instr & generateMask(5,6));//don't worry about this
+                        int rn = ((instr & generateMask(16,19)) >> 16) & 0xf;
+                        int rd = ((instr & generateMask(15,12)) >> 15) & 0xf;
+                        int offset = (((instr & generateMask(8,11)) >> 8) & 0xf) << 4; //get higher nibble
+                        offset += ((instr & generateMask(0,3)) >> 0) & 0xf;
+                        byte sh = (byte)(((instr & generateMask(5,6)) >> 5) & 0x3);//don't worry about this
 
                         int addr = registers[rn];
                         if (preIndex)
@@ -1024,11 +1024,11 @@ public class Core implements Runnable {
                         boolean addOffset = (instr & generateMask(23,23)) > 0;
                         boolean writeBack  = (instr & generateMask(21,21)) > 0;
                         boolean load = (instr & generateMask(20,20)) > 0;
-                        int rn = removeTrailingZeroes(instr & generateMask(16,19));
-                        int rd = removeTrailingZeroes(instr & generateMask(15,12));
-                        int offset = removeTrailingZeroes(instr & generateMask(8,11)) << 4; //get higher nibble
-                        offset += removeTrailingZeroes(instr & generateMask(0,3));
-                        byte sh = (byte)removeTrailingZeroes(instr & generateMask(5,6));//don't worry about this
+                        int rn = ((instr & generateMask(16,19)) >> 16) & 0xf;
+                        int rd = ((instr & generateMask(12,15)) >> 15) & 0xf;
+                        int offset = (((instr & generateMask(8,11)) >> 8) & 0xf) << 4; //get higher nibble
+                        offset += ((instr & generateMask(0,3)) >> 0) & 0xf;
+                        byte sh = (byte)(((instr & generateMask(5,6)) >> 5) & 0x3);//don't worry about this
 
                         int addr = registers[rn];
                         if (preIndex)
@@ -1040,7 +1040,7 @@ public class Core implements Runnable {
                         }
 
                         byte data1 = dataMem.readByte(addr, dataBound);
-                        
+
                         int data = data1; //note, I get sign extension
                                            //for free when converting
                                             //from byte to int
@@ -1078,22 +1078,6 @@ public class Core implements Runnable {
         }
 
         return ((2 << (to_bit - from_bit)) - 1) << from_bit;
-    }
-
-    private int removeTrailingZeroes(int x) {
-        int guard = 0;
-        while ((x & 1) == 0) {
-            x = x >> 1;
-            ++guard;
-
-            if (guard > 32) //if x == 0 is passed in, then this might be infinite loop
-            {
-                break;
-            }
-        }
-
-        return x;
-
     }
 
     /**
