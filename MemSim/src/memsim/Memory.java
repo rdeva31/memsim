@@ -96,8 +96,8 @@ public class Memory {
      */
     public int readWord(int memAddr, Bound b) throws IllegalArgumentException, MemoryAccessException
     {
+        System.out.printf("Reading mem addr 0x%x\n", memAddr);
         int realAddr = b.getLowerBound() + memAddr;
-        
         if ((memAddr & 3) != 0)
             throw new IllegalArgumentException("address isn't word aligned");
         else if (realAddr > b.getHigherBound())
@@ -218,6 +218,6 @@ public class Memory {
 
 
 
-        m.size = totalBytes;
+        //m.size = totalBytes;
     }
 }

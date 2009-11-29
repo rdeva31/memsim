@@ -1,7 +1,6 @@
 
 package memsim;
 
-import java.io.File;
 /**
  *
  * @author rdeva
@@ -35,5 +34,9 @@ public abstract class Processor implements Runnable {
 
         if (dataContent != null)
             Memory.loadIntoMemory(getCoreList().get(coreIndex).getDataMemory(), dataContent, -1);
+
+        //set the stack pointer to end of memory
+        getCoreList().get(coreIndex).registers[13] = getCoreList().get(coreIndex).getProgramMemory().getSize() * 4 - 4;
+
     }
 }

@@ -24,7 +24,7 @@ public class Core implements Runnable {
     R15             Program Counter
      */
     final static int NUM_REGISTERS = 16;
-    private int registers[] = new int[NUM_REGISTERS];
+    public int registers[] = new int[NUM_REGISTERS];
     private int cpsrRegister = 0;
     private final int N_MASK = 1 << 31, //masks to helpout when fiddling w/ CPSR reg
                       Z_MASK = 1 << 30,
@@ -59,8 +59,8 @@ public class Core implements Runnable {
             }
             catch (Exception e)
             {
-                System.err.println("some exception occured while running a program at $pc " + registers[15]);
-                e.printStackTrace(System.err);
+                //System.err.println("some exception occured while running a program at $pc " + registers[15]);
+                //e.printStackTrace(System.err);
                 break;
             }
         }
@@ -69,7 +69,6 @@ public class Core implements Runnable {
     private void exec(int instruction) throws UnknownFormatException, UnimplementedInstructionException,
             MemoryAccessException {
 
-        System.out.printf("instr is %x\n", instruction);
         int op = ((instruction & generateMask(25, 27)) >> 25) & 0x7;
 
         switch (op) {
@@ -304,7 +303,100 @@ public class Core implements Runnable {
                     }
                 } else {
                     /* dataproc immediate */
-                    //TODO: implement this (can't find in ARM manual )
+                    int opcode = ((instruction & generateMask(21,24)) >> 21) & 0xf;
+                    boolean changeStatus = (instruction & generateMask(20,20)) > 0;
+                    int rn = ((instruction & generateMask(16,19)) >> 16) & 0xf;
+                    int rd = ((instruction & generateMask(12,15)) >> 12) & 0xf;
+                    int rotate = ((instruction & generateMask(8,11)) >> 8) & 0xf;
+                    int i = ((instruction & generateMask(25,25)) >> 25) & 0x1;
+                    int imm = ((instruction & generateMask(0,7)) >> 0) & 0xff;
+
+                    if (i == 0)
+                    {
+                        int rm = ((instruction & generateMask(0,3)) >> 0) & 0xf;
+                        int shiftType = ((instruction & generateMask(5,6)) >> 5) & 0x3;
+                        int shiftAmount = ((instruction & generateMask(7,11)) >> 7) & 0xf;
+                        imm = this.shiftHelper(shiftType, shiftAmount, registers[rm]);
+                    }
+                    else
+                    {
+                        //rotate imm value
+                        for (int c = 0; c < rotate % 8; ++c) //the % is there because rotatin 8 bit int by 9
+                                                            //is same as rotating once
+                        {
+                            int temp = imm & (1<<7);
+                            imm <<= 1;
+                            imm = imm + ((temp > 0) ? 1 : 0);
+                        }
+                    }
+                    int op2 = imm;
+                    int result;
+                    switch(opcode)
+                    {
+                        case 0: //AND
+                            result = registers[rd] = registers[rn] & op2;
+                            break;
+                        case 1: //EOR
+                            result = registers[rd] = registers[rn] ^ op2;
+                            break;
+                        case 2:
+                            result = registers[rd] = registers[rn] - op2;
+                            break;
+                        case 3:
+                            result = registers[rd] = op2 - registers[rn];
+                            break;
+                        case 4:
+                            result = registers[rd] = registers[rn] + op2; //FIXME: bug here not checking for overlfow
+                            break;
+                        case 5:
+                            result = registers[rd] = registers[rn] + op2 + (cpsrRegister & C_MASK);
+                            break;
+                        case 6:
+                            result = registers[rd] = registers[rn] - op2 + (cpsrRegister & C_MASK) - 1;
+                            break;
+                        case 7:
+                            result = registers[rd] = op2 - registers[rn] + (cpsrRegister & C_MASK) - 1;
+                            break;
+                        case 8:
+                            result = registers[rn] & op2;
+                            break;
+                        case 9:
+                            result = registers[rn] ^ op2;
+                            break;
+                        case 10:
+                            result = registers[rn] - op2;
+                            break;
+                        case 11:
+                            result = registers[rn] + op2;
+                            break;
+                        case 12:
+                            result = registers[rd] = registers[rn] | op2;
+                            break;
+                        case 13:
+                            result = registers[rd] = op2;
+                            break;
+                        case 14:
+                            result = registers[rd] = registers[rn] & ~op2;
+                            break;
+                        default: //15
+                            result = registers[rd] = ~op2;
+                    }
+
+                    if (changeStatus)
+                    {
+                        if (result == 0)
+                            cpsrRegister |= Z_MASK;
+                        else
+                            cpsrRegister &= ~Z_MASK;
+
+                        if (result < 0)
+                            cpsrRegister |= N_MASK;
+                        else
+                            cpsrRegister &= ~N_MASK;
+
+                        //FIXME: need to check for overflow
+
+                    }
                     //return ARMV4_TypeDataProcessing;
                 }
                 break;
@@ -452,7 +544,24 @@ public class Core implements Runnable {
             case 0x5:
                 /* B and BL */
                 /* ParseInstrBranch(instr); */
+                boolean link = (instruction & generateMask(24,24)) > 0;
+                int offset = (instruction & generateMask(0,23)) << 2;
 
+                //offset is in two's complement, so need to sign extend it
+                if ((offset & generateMask(23,23)) != 0) //only need to sign extend if negative
+                {
+                    int mask = 0xff;
+                    mask = mask << 24;
+                    offset = mask | offset;
+                }
+
+                if (link)
+                    registers[14] = registers[15] + 4;
+                
+                registers[15] += (offset) - 8; //instruction encoding takes into account
+                                                //some lame pipeline stuff, requiring
+                                                //equally lame offset
+                
                 //return ARMV4_TypeBranch;
                 break;
             case 0x6:
