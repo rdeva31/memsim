@@ -50,6 +50,7 @@ public class Core implements Runnable {
     }
 
     public void run() {
+        
         for (registers[15] = 0; registers[15] < programMem.getSize(); registers[15] += 4)
         {
             try
@@ -68,7 +69,6 @@ public class Core implements Runnable {
 
     private void exec(int instruction) throws UnknownFormatException, UnimplementedInstructionException,
             MemoryAccessException {
-
         int op = ((instruction & generateMask(25, 27)) >> 25) & 0x7;
 
         switch (op) {

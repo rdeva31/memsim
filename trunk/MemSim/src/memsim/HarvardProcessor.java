@@ -45,6 +45,6 @@ class HarvardProcessor extends Processor {
     public void run()
     {
         for (Core c : coresList)
-            new Thread(c).run();
+            new Thread(c).start();
     }
 }
