@@ -28,7 +28,7 @@ public class VonNeumannProcessor extends Processor {
 
     public void setCores(int numCores)
     {
-         if (numCores <= 0)
+         if (numCores < 1)
             throw new IllegalArgumentException("numCores must be > 0");
         else if (running)
             throw new IllegalArgumentException("Can't change the number of cores when processor is running");
@@ -36,7 +36,7 @@ public class VonNeumannProcessor extends Processor {
         if (numCores < this.numCores)
             coresList.removeAll(coresList.subList(numCores, this.numCores - 1));
         else if (numCores > this.numCores)
-            for (int c = this.numCores; c <= numCores; ++c)
+            for (int c = this.numCores + 1; c <= numCores; ++c)
                 coresList.add(new Core(mem, new Bound(0, 100), mem, new Bound(0, 100)));//FIXME bogus bounds
 
          this.numCores = numCores;
@@ -49,6 +49,8 @@ public class VonNeumannProcessor extends Processor {
     public void run()
     {
         for (Core c : coresList)
-            new Thread(c).run();
+        {
+            new Thread(c).start();
+        }
     }
 }

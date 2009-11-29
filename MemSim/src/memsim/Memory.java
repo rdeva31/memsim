@@ -17,6 +17,9 @@ public class Memory {
     public static final int MIN_SIZE = 128;
     private int size;
 
+    private static java.util.concurrent.locks.ReentrantLock lock = new
+            java.util.concurrent.locks.ReentrantLock();
+    private static int waiters;
     /*
      * Addressing for mem goes like this
      * mem[addr] = | byte 1 | byte 2 | byte 3 | byte 4 |
@@ -96,14 +99,27 @@ public class Memory {
      */
     public int readWord(int memAddr, Bound b) throws IllegalArgumentException, MemoryAccessException
     {
-        System.out.printf("Reading mem addr 0x%x\n", memAddr);
-        int realAddr = b.getLowerBound() + memAddr;
-        if ((memAddr & 3) != 0)
-            throw new IllegalArgumentException("address isn't word aligned");
-        else if (realAddr > b.getHigherBound())
-            throw new MemoryAccessException("Memory addr out of bounds");
-
-        return mem[realAddr >> 2];
+        try
+        {
+            ++waiters;
+            lock.lock();
+            --waiters;
+            System.out.println(waiters);
+            //System.out.println(Thread.currentThread());
+            //System.out.printf("waiting: %d, reading: %x[%s]\n", lock.getQueueLength(), memAddr, b.toString());
+            int realAddr = b.getLowerBound() + memAddr;
+            if ((memAddr & 3) != 0)
+                throw new IllegalArgumentException("address isn't word aligned");
+            else if (realAddr > b.getHigherBound())
+                throw new MemoryAccessException("Memory addr out of bounds");
+                
+            return mem[realAddr >> 2];
+        }
+        finally
+        {
+            lock.unlock();
+        }
+        
     }
 
     /**
