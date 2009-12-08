@@ -11,12 +11,15 @@ class HarvardProcessor extends Processor {
     private java.util.ArrayList<Core> coresList;
     private int numCores = 1;
     private boolean running = false;
-    private final int MEMORY_SIZE = 1024;
+    private final int MEMORY_SIZE = 2048, MEMORY_SEGMENT_SIZE = 256;
 
+    private Memory sharedProgramMemory = new Memory(MEMORY_SIZE),
+            sharedDataMemory = new Memory(MEMORY_SIZE);
     public HarvardProcessor()
     {
         coresList = new java.util.ArrayList<Core>(numCores);
-        coresList.add(new Core(new Memory(MEMORY_SIZE), new Bound(0,100), new Memory(MEMORY_SIZE), new Bound(0,100))); //FIXME bogus bounds
+        coresList.add(new Core(sharedProgramMemory, new Bound(0,MEMORY_SEGMENT_SIZE),
+                sharedDataMemory, new Bound(0,MEMORY_SEGMENT_SIZE))); //FIXME bogus bounds
     }
 
     public void setCores(int numCores)
@@ -29,8 +32,13 @@ class HarvardProcessor extends Processor {
         if (numCores < this.numCores)
             coresList.removeAll(coresList.subList(numCores, this.numCores - 1));
         else if (numCores > this.numCores)
-            for (int c = this.numCores; c <= numCores; ++c)
-                coresList.add(new Core(new Memory(MEMORY_SIZE), new Bound(0,100), new Memory(MEMORY_SIZE), new Bound(0,100)));//FIXME bogus bounds
+            for (int c = this.numCores + 1; c <= numCores; ++c)
+                coresList.add(new Core(sharedProgramMemory, new Bound((numCores - 1) * MEMORY_SEGMENT_SIZE
+                        , numCores * MEMORY_SEGMENT_SIZE)
+                        , sharedDataMemory
+                        , new Bound((numCores - 1) * MEMORY_SEGMENT_SIZE, numCores * MEMORY_SEGMENT_SIZE)));//FIXME bogus bounds
+
+        this.numCores = numCores;
     }
 
     public ArrayList<Core> getCoreList() {
